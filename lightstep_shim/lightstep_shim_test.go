@@ -1,7 +1,6 @@
 package lightstep_shim_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -97,8 +96,6 @@ func TestSpanRecording(t *testing.T) {
 		Recorder:      recorder,
 	})
 
-	fmt.Println("TRACER", tracer)
-
 	span := tracer.StartSpan("testOperation")
 	span.SetTag("exampleTag", "value")
 	span.Finish()
@@ -108,5 +105,46 @@ func TestSpanRecording(t *testing.T) {
 	assert.Equal(t, len(honeycombMock.Events()), 1)
 	assert.Equal(t, honeycombMock.Events()[0].Fields()["operationName"], "testOperation")
 	assert.Equal(t, honeycombMock.Events()[0].Fields()["exampleTag"], "value")
-	fmt.Println("received", honeycombMock.Events())
+}
+
+func TestSampling(t *testing.T) {
+	honeycombMock := &libhoney.MockOutput{}
+	libhoney.Init(libhoney.Config{
+		Output: honeycombMock,
+	})
+
+	sampler := func(span lightstep.RawSpan) (sampleRate uint, drop bool) {
+		if span.Context.TraceID%10 == 0 {
+			return 10, false
+		} else {
+			return 0, true
+		}
+	}
+
+	recorder := lightstep_shim.NewHoneycombSpanRecorder(
+		lightstep_shim.Options{
+			WriteKey: "test",
+			Dataset:  "test",
+			Sampler:  sampler,
+		})
+
+	tracer := lightstep.NewTracer(lightstep.Options{
+		AccessToken:   "-",
+		ReportTimeout: time.Millisecond, // Stop the lightstep tracer from hanging on close
+		LightStepAPI:  lightstep.Endpoint{Host: "localhost", Port: 9, Plaintext: false},
+		Recorder:      recorder,
+	})
+
+	for i := 0; i < 100; i++ {
+		span := tracer.StartSpan("testOperation")
+		span.SetTag("exampleTag", "value")
+		span.Finish()
+	}
+
+	tracer.Close()
+	libhoney.Close()
+	assert.True(t, 0 < len(honeycombMock.Events()) && len(honeycombMock.Events()) < 20)
+	for _, ev := range honeycombMock.Events() {
+		assert.Equal(t, ev.SampleRate, uint(10))
+	}
 }

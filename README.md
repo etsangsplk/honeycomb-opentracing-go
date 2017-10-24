@@ -30,6 +30,6 @@ For full configuration options and more examples, please see the
 
 ## Other Tracers
 
-Integration with additional client libraries is coming; please
-don't hesitate to get in touch by filing an issue or contacting
-[support@honeycombio](mailto:support@honeycomb.io).
+Integration with additional client libraries is coming soon! For any questions
+or requests, please don't hesitate to get in touch by filing an issue or
+emailing [support@honeycombio](mailto:support@honeycomb.io).
