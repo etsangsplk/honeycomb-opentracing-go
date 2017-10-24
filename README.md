@@ -26,7 +26,7 @@ opentracing.InitGlobalTracer(tracer)
 ```
 
 For full configuration options and more examples, please see the
-[Godoc](https://github.com/honeycombio/honeycomb-opentracing-go/lightstep_shim).
+[Godoc](https://godoc.org/github.com/honeycombio/honeycomb-opentracing-go/lightstep_shim).
 
 ## Other Tracers
 

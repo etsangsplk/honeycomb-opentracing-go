@@ -18,18 +18,26 @@ var reservedTags = map[string]string{
 }
 
 // HoneycombSpanRecorder implements the lightstep.SpanRecorder interface by
-// forwarding span data to Honeycomb.
+// forwarding finished spans to the Honeycomb ingest API.
 type HoneycombSpanRecorder struct {
 	Options Options
 
 	builder *libhoney.Builder
 }
 
+// Options configure authentication to the Honeycomb API, as well as optional
+// routing and sampling.
 type Options struct {
+	// WriteKey is your Honeycomb team's write key, found at
+	// https://ui.honeycomb.io/account.
 	WriteKey string
-	Dataset  string
-	Router   RouterFunc
-	Sampler  SamplerFunc
+	// Dataset is the name of the destination dataset for spans.
+	Dataset string
+	// Router is an optional function to override the write key and dataset
+	// parameters on a per-span basis.
+	Router RouterFunc
+	// Sampler is an optional function for sampling spans that get sent.
+	Sampler SamplerFunc
 }
 
 // NewHoneycombSpanRecorder creates a new HoneycombSpanRecorder configured with
