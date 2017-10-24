@@ -2,7 +2,7 @@
 // collected by the Lightstep tracer
 // (https://github.com/lightstep/lightstep-tracer-go) to Honeycomb
 // (https://honeycomb.io/).
-package honeycomb
+package lightstep_shim
 
 import (
 	libhoney "github.com/honeycombio/libhoney-go"
@@ -20,46 +20,27 @@ var reservedTags = map[string]string{
 // HoneycombSpanRecorder implements the lightstep.SpanRecorder interface by
 // forwarding span data to Honeycomb.
 type HoneycombSpanRecorder struct {
-	WriteKey string
-	Dataset  string
-	Router   RouterFunc
+	Options Options
 
 	builder *libhoney.Builder
 }
 
-type RecorderOption func(*HoneycombSpanRecorder)
-
-// WithWriteKey sets the default write key used to send span data to Honeycomb.
-func WithWriteKey(writeKey string) func(*HoneycombSpanRecorder) {
-	return func(hc *HoneycombSpanRecorder) {
-		hc.WriteKey = writeKey
-	}
+type Options struct {
+	WriteKey string
+	Dataset  string
+	Router   RouterFunc
+	Sampler  SamplerFunc
 }
 
-// WithDataset sets the default destination dataset for span data
-func WithDataset(dataset string) func(*HoneycombSpanRecorder) {
-	return func(hc *HoneycombSpanRecorder) {
-		hc.Dataset = dataset
+// NewHoneycombSpanRecorder creates a new HoneycombSpanRecorder configured with
+// the given options.
+func NewHoneycombSpanRecorder(options Options) *HoneycombSpanRecorder {
+	h := &HoneycombSpanRecorder{
+		Options: options,
+		builder: libhoney.NewBuilder(),
 	}
-}
-
-// WithRouter sets an optional function to control span routing and sampling.
-func WithRouter(router RouterFunc) func(*HoneycombSpanRecorder) {
-	return func(hc *HoneycombSpanRecorder) {
-		hc.Router = router
-	}
-}
-
-// NewSpanRecorder creates a new HoneycombSpanRecorder.
-func NewSpanRecorder(opts ...RecorderOption) *HoneycombSpanRecorder {
-	h := &HoneycombSpanRecorder{}
-	for _, o := range opts {
-		o(h)
-	}
-
-	h.builder = libhoney.NewBuilder()
-	h.builder.WriteKey = h.WriteKey
-	h.builder.Dataset = h.Dataset
+	h.builder.WriteKey = options.WriteKey
+	h.builder.Dataset = options.Dataset
 	return h
 }
 
@@ -74,17 +55,27 @@ func (h *HoneycombSpanRecorder) RecordSpan(r lightstep.RawSpan) {
 	event.AddField("logs", r.Logs)
 	addTagsToEvent(r, event)
 
-	if h.Router != nil {
-		routeInfo := h.Router(r)
-		if routeInfo.Drop {
-			return
+	if h.Options.Router != nil {
+		routeInfo := h.Options.Router(r)
+		if routeInfo.WriteKey != "" {
+			event.WriteKey = routeInfo.WriteKey
 		}
-		event.Dataset = routeInfo.Dataset
-		event.WriteKey = routeInfo.WriteKey
-		event.SampleRate = routeInfo.SampleRate
+		if routeInfo.Dataset != "" {
+			event.Dataset = routeInfo.Dataset
+		}
 	}
 
-	event.Send()
+	if h.Options.Sampler != nil {
+		sampleRate, drop := h.Options.Sampler(r)
+		if drop {
+			return
+		}
+		event.SampleRate = sampleRate
+	}
+
+	// The SampleRate is considered advisory, meaning that if you set a
+	// SampleRate of 10
+	event.SendPresampled()
 }
 
 // Close waits for any in-flight requests to the Honeycomb API to finish.
@@ -97,13 +88,13 @@ func (h *HoneycombSpanRecorder) Close() {
 // different datasets, or dynamically sample spans, you can do that by
 // supplying a custom RouterFunc implementation to your HoneycombSpanRecorder.
 type RouteInfo struct {
-	Dataset    string
-	WriteKey   string
-	SampleRate uint
-	Drop       bool
+	Dataset  string
+	WriteKey string
 }
 
 type RouterFunc func(lightstep.RawSpan) RouteInfo
+
+type SamplerFunc func(lightstep.RawSpan) (sampleRate uint, drop bool)
 
 func addTagsToEvent(r lightstep.RawSpan, ev *libhoney.Event) {
 	if r.Tags != nil {
