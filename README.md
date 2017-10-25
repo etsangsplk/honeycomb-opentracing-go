@@ -16,7 +16,7 @@ options := lightstep.Options{
 
 options.Recorder := lightstep_shim.NewSpanRecorder(
     lightstep_shim.Options{
-        WriteKey: "YOUR_WRITE_KEY",
+        WriteKey: "YOUR_HONEYCOMB_WRITE_KEY",
         Dataset: "YOUR_DATASET",
     },
 )

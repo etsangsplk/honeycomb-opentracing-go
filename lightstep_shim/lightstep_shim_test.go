@@ -27,7 +27,7 @@ func ExampleHoneycombSpanRecorder() {
 	opentracing.InitGlobalTracer(tracer)
 }
 
-func ExampleRouter() {
+func ExampleRouterFunc() {
 	router := func(span lightstep.RawSpan) (r lightstep_shim.RouteInfo) {
 		if env, ok := span.Tags["env"]; ok {
 			if env == "prod" {
@@ -53,7 +53,7 @@ func ExampleRouter() {
 	opentracing.InitGlobalTracer(tracer)
 }
 
-func ExampleSampler() {
+func ExampleSamplerFunc() {
 	// Assuming trace IDs are generated randomly, send all the spans for one
 	// out of every ten traces.
 	sampler := func(span lightstep.RawSpan) (sampleRate uint, drop bool) {

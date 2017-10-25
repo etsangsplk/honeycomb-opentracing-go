@@ -81,8 +81,12 @@ func (h *HoneycombSpanRecorder) RecordSpan(r lightstep.RawSpan) {
 		event.SampleRate = sampleRate
 	}
 
-	// The SampleRate is considered advisory, meaning that if you set a
-	// SampleRate of 10
+	// Using libhoney's fully-randomized sampling isn't likely to work very
+	// well for tracing data. In real-world use cases, we'd probably want to
+	// take trace ID into account and/or apply some sort of dynamic sampling
+	// policy. So we expect Sampler implementations to tell us which events to
+	// drop, and what sample rate to set on retained events. Thus it's
+	// essential to call SendPresampled() instead of Send() here.
 	event.SendPresampled()
 }
 
@@ -93,15 +97,19 @@ func (h *HoneycombSpanRecorder) Close() {
 
 // RouteInfo describes configuration overrides to use when sending a span's
 // data to Honeycomb. If you'd like to send spans from different services to
-// different datasets, or dynamically sample spans, you can do that by
-// supplying a custom RouterFunc implementation to your HoneycombSpanRecorder.
+// different datasets or different teams, you can do that by
+// supplying a custom RouterFunc implementation as Options.Router.
 type RouteInfo struct {
 	Dataset  string
 	WriteKey string
 }
 
+// RouterFunc is the function signature for implementations of Options.Router.
 type RouterFunc func(lightstep.RawSpan) RouteInfo
 
+// SamplerFunc is the function signature for implementations of
+// Options.Sampler. By providing a sampling function, you can send just a
+// representative sample of spans to Honeycomb.
 type SamplerFunc func(lightstep.RawSpan) (sampleRate uint, drop bool)
 
 func addTagsToEvent(r lightstep.RawSpan, ev *libhoney.Event) {
