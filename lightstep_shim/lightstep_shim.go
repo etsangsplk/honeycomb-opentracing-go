@@ -5,6 +5,8 @@
 package lightstep_shim
 
 import (
+	"fmt"
+
 	libhoney "github.com/honeycombio/libhoney-go"
 	lightstep "github.com/lightstep/lightstep-tracer-go"
 )
@@ -53,6 +55,10 @@ func NewHoneycombSpanRecorder(options Options) *HoneycombSpanRecorder {
 }
 
 func (h *HoneycombSpanRecorder) RecordSpan(r lightstep.RawSpan) {
+	if h.builder == nil {
+		fmt.Println("HoneycombSpanRecorder wasn't initialized properly! Span transmission might not work.")
+		h.builder = libhoney.NewBuilder()
+	}
 	event := h.builder.NewEvent()
 	event.AddField("traceID", r.Context.TraceID)
 	event.AddField("id", r.Context.SpanID)
