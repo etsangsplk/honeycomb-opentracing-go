@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/honeycombio/honeycomb-opentracing-go.svg?branch=master)](https://travis-ci.org/honeycombio/honeycomb-opentracing-go) [![GoDoc](https://godoc.org/github.com/honeycombio/honeycomb-opentracing-go?status.svg)](https://godoc.org/github.com/honeycombio/honeycomb-opentracing-go)
+
 This repository contains helpers to send [OpenTracing](http://opentracing.io/)
 data to [Honeycomb](https://honeycomb.io) from Go services.
 
